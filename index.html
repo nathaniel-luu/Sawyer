@@ -727,6 +727,68 @@
     }
 
     /* ─── REDUCED MOTION ─── */
+    /* ─── WATERPOLO GAME ─── */
+    #waterpolo-quest {
+      background: var(--bg);
+      gap: 0.8rem;
+    }
+    .wp-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.3rem, 5vw, 2rem);
+      font-weight: 400;
+      color: var(--ink);
+      letter-spacing: 0.06em;
+    }
+    .wp-sub {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1rem, 3vw, 1.15rem);
+      color: var(--ink);
+      opacity: 0.7;
+    }
+    #waterpoloCanvas {
+      border: 1.5px solid var(--ink-faint);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      touch-action: none;
+      cursor: pointer;
+    }
+    .wp-hud {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 340px;
+      padding: 0 4px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      color: var(--ink);
+    }
+    .wp-msg {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1rem, 3vw, 1.15rem);
+      color: var(--ink);
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      min-height: 1.5em;
+    }
+    .wp-msg.show { opacity: 1; }
+    .wp-hint {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.85rem;
+      font-style: italic;
+      color: var(--ink-faint);
+    }
+
+    /* ─── SCREEN SHAKE ─── */
+    .shake { animation: shakeIt 0.35s ease-in-out; }
+    @keyframes shakeIt {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      50% { transform: translateX(6px); }
+      75% { transform: translateX(-4px); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .particle, .celeb-sticker { animation: none !important; }
       .fade-in { animation: none !important; opacity: 1; transform: none; }
@@ -748,9 +810,23 @@
     <p class="intro-sub fade-in" style="animation-delay:0.3s">
       I wish you the happiest day of all &#x1F49A;
     </p>
-    <button class="btn-primary fade-in" style="animation-delay:0.6s" onclick="goTo('courage-quest')">
+    <button class="btn-primary fade-in" style="animation-delay:0.6s" onclick="goTo('waterpolo-quest')">
       Continue
     </button>
+  </section>
+
+  <!-- ======= SIDE QUEST — WATERPOLO ======= -->
+  <section class="screen" id="waterpolo-quest">
+    <h2 class="wp-title fade-in">side quest</h2>
+    <p class="wp-sub fade-in" style="animation-delay:0.2s">score 3 goals — tap to shoot!</p>
+    <div class="wp-hud fade-in" style="animation-delay:0.3s">
+      <span id="wpGoals">goals: 0 / 3</span>
+      <span id="wpShots">shots: 0</span>
+    </div>
+    <canvas class="fade-in" style="animation-delay:0.4s" id="waterpoloCanvas" width="340" height="260"></canvas>
+    <p class="wp-hint fade-in" style="animation-delay:0.6s" id="wpHint">tap to shoot</p>
+    <p class="wp-msg" id="wpMsg"></p>
+    <button class="btn-primary" id="wpContinue" style="display:none" onclick="goTo('courage-quest')">Continue</button>
   </section>
 
   <!-- ======= SIDE QUEST — LOADING FEELINGS ======= -->
@@ -951,7 +1027,8 @@ I'm so grateful for you.</p>
       });
       window.scrollTo(0, 0);
 
-      // Loading feelings scene
+      // Initialize game scenes
+      if (screenId === 'waterpolo-quest') setTimeout(initWaterpolo, 50);
       if (screenId === 'courage-quest') setTimeout(initLoadingFeelings, 50);
     }
 
@@ -1104,6 +1181,342 @@ I'm so grateful for you.</p>
       if (embed.src !== newSrc) {
         embed.src = newSrc;
       }
+    }
+
+    // =======================================
+    //  WATERPOLO — PENALTY SHOOTOUT GAME
+    // =======================================
+    let wpState = null;
+    let wpAnimId = null;
+
+    const wpGoalMsgs = [
+      'SPLAAASH!',
+      'what a shot!',
+      'too easy 😤',
+      'nothing but net!',
+      'absolute rocket 🚀',
+      'the crowd goes wild!',
+    ];
+
+    function initWaterpolo() {
+      const cvs = document.getElementById('waterpoloCanvas');
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      const W = cvs.width, H = cvs.height;
+      const bp = 4; // pixel size
+
+      if (wpAnimId) cancelAnimationFrame(wpAnimId);
+
+      wpState = {
+        phase: 'aiming', // aiming, shooting, goal, saved, won
+        goals: 0, shots: 0, frame: 0,
+        // Goal frame
+        goalX: 45, goalY: 30, goalW: 250, goalH: 100,
+        // Goalie
+        gkX: W / 2, gkDir: 1, gkSpeed: 1.2,
+        gkW: 36, gkH: 44,
+        // Aim marker
+        aimX: W / 2, aimDir: 1, aimSpeed: 2.5,
+        // Ball
+        ballX: W / 2, ballY: H - 40,
+        ballTargetX: 0, ballTargetY: 0,
+        ballProgress: 0,
+        ballStartX: 0, ballStartY: 0,
+        // Splash particles
+        splashes: [],
+        // Message timer
+        msgTimer: 0,
+        // Difficulty (goalie gets faster each goal)
+        difficulty: 0,
+      };
+
+      document.getElementById('wpGoals').textContent = 'goals: 0 / 3';
+      document.getElementById('wpShots').textContent = 'shots: 0';
+      document.getElementById('wpHint').style.display = '';
+      document.getElementById('wpHint').textContent = 'tap to shoot';
+      document.getElementById('wpMsg').classList.remove('show');
+      document.getElementById('wpMsg').textContent = '';
+      document.getElementById('wpContinue').style.display = 'none';
+
+      // Click handler
+      cvs.onclick = function() {
+        if (!wpState) return;
+        if (wpState.phase === 'aiming') {
+          // Shoot!
+          wpState.phase = 'shooting';
+          wpState.shots++;
+          wpState.ballStartX = wpState.ballX;
+          wpState.ballStartY = wpState.ballY;
+          wpState.ballTargetX = wpState.aimX;
+          wpState.ballTargetY = wpState.goalY + 60;
+          wpState.ballProgress = 0;
+          document.getElementById('wpHint').style.display = 'none';
+          document.getElementById('wpShots').textContent = 'shots: ' + wpState.shots;
+        }
+      };
+
+      function drawWaterpoloFrame() {
+        const s = wpState;
+        if (!s) return;
+        s.frame++;
+        ctx.clearRect(0, 0, W, H);
+
+        // === BACKGROUND — Pool water ===
+        // Deep water gradient
+        const waterGrad = ctx.createLinearGradient(0, 0, 0, H);
+        waterGrad.addColorStop(0, '#4a90b8');
+        waterGrad.addColorStop(0.3, '#3d7fa8');
+        waterGrad.addColorStop(1, '#2d6a90');
+        ctx.fillStyle = waterGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Pool lane lines (horizontal)
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        for (let ly = 0; ly < H; ly += 40) {
+          ctx.fillRect(0, ly, W, bp);
+        }
+        // Lane rope floats (colored dots on lane lines)
+        const ropeColors = ['#e04040', '#ffffff', '#e04040', '#3060c0', '#ffffff'];
+        for (let ly = 0; ly < H; ly += 40) {
+          for (let lx = 0; lx < W; lx += 20) {
+            ctx.fillStyle = ropeColors[Math.floor((lx + ly) / 20) % ropeColors.length];
+            ctx.globalAlpha = 0.25;
+            ctx.fillRect(lx, ly, bp * 2, bp);
+            ctx.globalAlpha = 1;
+          }
+        }
+
+        // Water wave effect (subtle sine ripples)
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        for (let wy = 0; wy < H; wy += 12) {
+          const waveOffset = Math.sin(s.frame * 0.03 + wy * 0.1) * 8;
+          ctx.fillRect(waveOffset, wy, W, 2);
+        }
+
+        // === GOAL FRAME ===
+        const gx = s.goalX, gy = s.goalY, gw = s.goalW, gh = s.goalH;
+        // Goal shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(gx + 4, gy + 4, gw, gh);
+        // Net mesh (behind everything)
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        for (let ny = gy + bp * 2; ny < gy + gh; ny += 8) {
+          ctx.fillRect(gx + bp * 2, ny, gw - bp * 4, 1);
+        }
+        for (let nx = gx + bp * 2; nx < gx + gw; nx += 8) {
+          ctx.fillRect(nx, gy + bp * 2, 1, gh - bp * 2);
+        }
+        // Goal posts (white, thick)
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(gx, gy, bp * 2, gh); // left post
+        ctx.fillRect(gx + gw - bp * 2, gy, bp * 2, gh); // right post
+        ctx.fillRect(gx, gy, gw, bp * 2); // crossbar
+        // Post highlights
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(gx + 1, gy + 1, bp, gh - 2);
+        ctx.fillRect(gx + gw - bp * 2 + 1, gy + 1, bp, gh - 2);
+        ctx.fillRect(gx + 1, gy + 1, gw - 2, bp);
+        // Water line at goal base
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(gx, gy + gh - bp, gw, bp);
+
+        // === GOALIE ===
+        // Goalie moves back and forth inside the goal
+        if (s.phase === 'aiming' || s.phase === 'shooting') {
+          const gkSpeed = s.gkSpeed + s.difficulty * 0.4;
+          s.gkX += s.gkDir * gkSpeed;
+          const gkLeft = gx + bp * 3 + s.gkW / 2;
+          const gkRight = gx + gw - bp * 3 - s.gkW / 2;
+          if (s.gkX > gkRight) { s.gkX = gkRight; s.gkDir = -1; }
+          if (s.gkX < gkLeft) { s.gkX = gkLeft; s.gkDir = 1; }
+        }
+        // Draw goalie (pixel art character in water)
+        const gkDrawX = s.gkX - s.gkW / 2;
+        const gkDrawY = gy + gh - s.gkH - bp * 2;
+        // Body (treading water bob)
+        const gkBob = Math.sin(s.frame * 0.08) * 2;
+        // Cap (green — waterpolo cap)
+        ctx.fillStyle = '#2E7D32';
+        ctx.fillRect(gkDrawX + 6, gkDrawY + gkBob, 24, bp * 2);
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(gkDrawX + 8, gkDrawY + gkBob - bp, 20, bp);
+        // Head
+        ctx.fillStyle = '#f0d8b8';
+        ctx.fillRect(gkDrawX + 8, gkDrawY + bp * 2 + gkBob, 20, 12);
+        // Eyes
+        ctx.fillStyle = '#2a2320';
+        ctx.fillRect(gkDrawX + 12, gkDrawY + bp * 2 + 4 + gkBob, bp, bp);
+        ctx.fillRect(gkDrawX + 22, gkDrawY + bp * 2 + 4 + gkBob, bp, bp);
+        // Arms (out to sides, treading)
+        const armWave = Math.sin(s.frame * 0.1) * 3;
+        ctx.fillStyle = '#f0d8b8';
+        ctx.fillRect(gkDrawX - 2, gkDrawY + bp * 3 + 4 + armWave + gkBob, 10, bp * 2);
+        ctx.fillRect(gkDrawX + 28, gkDrawY + bp * 3 + 4 - armWave + gkBob, 10, bp * 2);
+        // Water splash around goalie
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(gkDrawX - 4, gkDrawY + bp * 5 + gkBob, s.gkW + 8, bp);
+
+        // === AIM MARKER (sweeping indicator) ===
+        if (s.phase === 'aiming') {
+          s.aimX += s.aimDir * s.aimSpeed;
+          const aimLeft = gx + bp * 4;
+          const aimRight = gx + gw - bp * 4;
+          if (s.aimX > aimRight) { s.aimX = aimRight; s.aimDir = -1; }
+          if (s.aimX < aimLeft) { s.aimX = aimLeft; s.aimDir = 1; }
+          // Draw aim crosshair
+          const aimY = gy + gh - 20;
+          ctx.fillStyle = 'rgba(255, 80, 80, 0.7)';
+          // Vertical line
+          ctx.fillRect(s.aimX - 1, aimY - 12, 2, 24);
+          // Horizontal line
+          ctx.fillRect(s.aimX - 12, aimY - 1, 24, 2);
+          // Circle
+          ctx.strokeStyle = 'rgba(255, 80, 80, 0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(s.aimX, aimY, 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // === BALL ===
+        if (s.phase === 'aiming') {
+          // Ball at bottom, ready to shoot
+          drawWpBall(ctx, s.ballX, s.ballY, bp);
+        } else if (s.phase === 'shooting') {
+          // Animate ball flying toward target
+          s.ballProgress += 0.04;
+          if (s.ballProgress >= 1) {
+            s.ballProgress = 1;
+            // Check if goal or save
+            const dx = Math.abs(s.ballTargetX - s.gkX);
+            if (dx > s.gkW / 2 + 4) {
+              // GOAL!
+              s.goals++;
+              s.difficulty = s.goals;
+              s.phase = 'goal';
+              s.msgTimer = 90;
+              // Splash effect at target
+              for (let i = 0; i < 12; i++) {
+                s.splashes.push({
+                  x: s.ballTargetX + (Math.random() - 0.5) * 20,
+                  y: s.ballTargetY + (Math.random() - 0.5) * 10,
+                  vx: (Math.random() - 0.5) * 4,
+                  vy: -Math.random() * 3 - 1,
+                  life: 20 + Math.floor(Math.random() * 15),
+                });
+              }
+              document.getElementById('wpGoals').textContent = 'goals: ' + s.goals + ' / 3';
+              const msgEl = document.getElementById('wpMsg');
+              msgEl.textContent = wpGoalMsgs[Math.floor(Math.random() * wpGoalMsgs.length)];
+              msgEl.classList.add('show');
+              // Check win
+              if (s.goals >= 3) {
+                s.phase = 'won';
+                msgEl.textContent = 'hat trick! waterpolo king 👑';
+                document.getElementById('wpContinue').style.display = '';
+              }
+            } else {
+              // SAVED
+              s.phase = 'saved';
+              s.msgTimer = 60;
+              // Screen shake
+              const screen = document.getElementById('waterpolo-quest');
+              screen.classList.remove('shake');
+              void screen.offsetHeight;
+              screen.classList.add('shake');
+              const msgEl = document.getElementById('wpMsg');
+              msgEl.textContent = 'saved! try again...';
+              msgEl.classList.add('show');
+            }
+          }
+          // Ball position (quadratic arc)
+          const t = s.ballProgress;
+          const arcHeight = -120 * t * (1 - t); // parabolic arc
+          const curX = s.ballStartX + (s.ballTargetX - s.ballStartX) * t;
+          const curY = s.ballStartY + (s.ballTargetY - s.ballStartY) * t + arcHeight;
+          // Ball grows slightly as it "approaches" the goal (perspective)
+          drawWpBall(ctx, curX, curY, bp * (1 - t * 0.3));
+        }
+
+        // === SPLASH PARTICLES ===
+        s.splashes.forEach(sp => {
+          sp.x += sp.vx;
+          sp.y += sp.vy;
+          sp.vy += 0.15;
+          sp.life--;
+          const alpha = Math.max(0, sp.life / 30);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(sp.x, sp.y, bp, bp);
+          ctx.fillRect(sp.x + bp, sp.y - bp, bp * 0.5, bp * 0.5);
+        });
+        ctx.globalAlpha = 1;
+        s.splashes = s.splashes.filter(sp => sp.life > 0);
+
+        // === GOAL SCORE DISPLAY (pixel hearts/balls at top) ===
+        for (let h = 0; h < 3; h++) {
+          const hx = W / 2 - 28 + h * 22;
+          const filled = h < s.goals;
+          ctx.fillStyle = filled ? '#4CAF50' : 'rgba(255,255,255,0.25)';
+          // Mini ball
+          ctx.beginPath();
+          ctx.arc(hx + 6, 14, 6, 0, Math.PI * 2);
+          ctx.fill();
+          if (filled) {
+            ctx.fillStyle = '#81C784';
+            ctx.beginPath();
+            ctx.arc(hx + 4, 12, 2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // === STATE TRANSITIONS ===
+        if (s.phase === 'goal' || s.phase === 'saved') {
+          s.msgTimer--;
+          if (s.msgTimer <= 0) {
+            s.phase = 'aiming';
+            s.ballX = W / 2;
+            s.ballY = H - 40;
+            s.ballProgress = 0;
+            document.getElementById('wpMsg').classList.remove('show');
+            document.getElementById('wpHint').style.display = '';
+            document.getElementById('wpHint').textContent = 'tap to shoot';
+          }
+        }
+
+        wpAnimId = requestAnimationFrame(drawWaterpoloFrame);
+      }
+
+      drawWaterpoloFrame();
+    }
+
+    function drawWpBall(ctx, x, y, p) {
+      // Waterpolo ball — yellow/white sphere with cross pattern
+      const r = p * 3;
+      // Ball body
+      ctx.fillStyle = '#f5e060';
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      // Highlight
+      ctx.fillStyle = '#f8eca0';
+      ctx.beginPath();
+      ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      // Cross stripes
+      ctx.strokeStyle = 'rgba(180,140,40,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+      ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+      ctx.stroke();
+      // Outline
+      ctx.strokeStyle = 'rgba(160,120,20,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     // =======================================
