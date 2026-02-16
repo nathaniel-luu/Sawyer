@@ -14,7 +14,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet">
 
   <!-- Preload critical GIFs -->
-  <link rel="preload" as="image" href="https://media.tenor.com/kMc91j5GxqQAAAAi/bubu-dudu-happy-birthday.gif">
+  <link rel="preload" as="image" href="https://media1.tenor.com/m/Gwjy6DziOwMAAAAC/frog-frog-image.gif">
+  <link rel="preload" as="image" href="https://media1.tenor.com/m/iEcab6Pbv_0AAAAC/littlest-friends-froggy.gif">
+  <link rel="preload" as="image" href="https://media1.tenor.com/m/A79RuOUvYDsAAAAC/littlest-friends-froggy.gif">
 
   <!-- Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
@@ -726,6 +728,34 @@
       100% { opacity: 0; transform: translateY(-105dvh) translateX(var(--drift, 30px)); }
     }
 
+    /* ─── FROG STICKERS ─── */
+    .frog-sticker {
+      overflow: hidden;
+      border-radius: 50%;
+      animation: frogBob 3s ease-in-out infinite;
+    }
+    .frog-sticker img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .frog-sticker-sm {
+      width: 100px;
+      height: 100px;
+    }
+    .frog-sticker-md {
+      width: 150px;
+      height: 150px;
+    }
+    .frog-sticker-lg {
+      width: 200px;
+      height: 200px;
+    }
+    @keyframes frogBob {
+      0%, 100% { transform: translateY(0) rotate(-1deg); }
+      50% { transform: translateY(-5px) rotate(1deg); }
+    }
+
     /* ─── REDUCED MOTION ─── */
     /* ─── HEY SCREEN ─── */
     #hey-screen {
@@ -911,7 +941,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .particle, .celeb-sticker { animation: none !important; }
+      .particle, .celeb-sticker, .frog-sticker { animation: none !important; }
       .fade-in { animation: none !important; opacity: 1; transform: none; }
     }
   </style>
@@ -923,6 +953,9 @@
 
   <!-- ======= SCREEN 0 — HEY ======= -->
   <section class="screen active" id="hey-screen">
+    <div class="frog-sticker frog-sticker-md fade-in">
+      <img src="https://media1.tenor.com/m/Gwjy6DziOwMAAAAC/frog-frog-image.gif" alt="cute frog saying hi">
+    </div>
     <h1 class="hey-greeting fade-in">Hey, Sawyer</h1>
     <p class="hey-sub fade-in" style="animation-delay:0.3s">
       I made something for you. It'll only take a minute.
@@ -935,8 +968,8 @@
   <!-- ======= SCREEN 1 — INTRO ======= -->
   <section class="screen" id="intro">
     <div class="intro-sticker">
-      <img src="https://media.tenor.com/kMc91j5GxqQAAAAi/bubu-dudu-happy-birthday.gif"
-           alt="Bubu and Dudu birthday">
+      <img src="https://media1.tenor.com/m/iEcab6Pbv_0AAAAC/littlest-friends-froggy.gif"
+           alt="happy birthday frog">
     </div>
     <h1 class="intro-greeting fade-in">Happy Birthday My Sawyer</h1>
     <p class="intro-sub fade-in" style="animation-delay:0.3s">
@@ -979,6 +1012,9 @@
 
   <!-- ======= FROG GAME OVER ======= -->
   <section class="screen" id="frog-over">
+    <div class="frog-sticker frog-sticker-sm fade-in">
+      <img src="https://media1.tenor.com/m/XNNHn_Ww-xQAAAAC/animal-frog.gif" alt="amazed frog" loading="lazy">
+    </div>
     <h2 class="fo-score fade-in">you hopped <span id="frogFinalDist">0</span> lanes!</h2>
     <p class="fo-msg" style="animation-delay:0.8s">not bad for a frog...</p>
     <p class="fo-msg" style="animation-delay:2s">ready for the next challenge?</p>
@@ -1014,9 +1050,13 @@
   <!-- ======= SCREEN — CELEBRATION ======= -->
   <section class="screen" id="celebration">
     <div class="celeb-gifs fade-in">
-      <div class="celeb-sticker">
-        <img src="https://media.tenor.com/kMc91j5GxqQAAAAi/bubu-dudu-happy-birthday.gif"
-             alt="Bubu and Dudu birthday" loading="lazy">
+      <div class="celeb-sticker" style="width:160px;height:160px;">
+        <img src="https://media1.tenor.com/m/HoSNWRsukgcAAAAC/frog-frog-image.gif"
+             alt="frog holding heart" loading="lazy">
+      </div>
+      <div class="celeb-sticker" style="width:160px;height:160px;animation-delay:0.3s;">
+        <img src="https://media1.tenor.com/m/A79RuOUvYDsAAAAC/littlest-friends-froggy.gif"
+             alt="frog with hearts" loading="lazy">
       </div>
     </div>
 
@@ -1029,6 +1069,9 @@
 
   <!-- ======= BOOKSHELF HUB ======= -->
   <section class="screen" id="adventure">
+    <div class="frog-sticker frog-sticker-sm fade-in" style="margin-bottom:-0.5rem;">
+      <img src="https://media1.tenor.com/m/P7FybbHZpN0AAAAC/frog-reading-a-book.gif" alt="frog reading" loading="lazy">
+    </div>
     <h2 class="bookshelf-title fade-in">your bookshelf</h2>
     <p class="bookshelf-sub fade-in" style="animation-delay:0.2s">pick one to open</p>
 
@@ -1068,6 +1111,11 @@
 
     <!-- Hidden letter content -->
     <div class="letter-content fade-in" style="animation-delay:0.3s; display:none;" id="letterContent">
+      <div style="text-align:center;margin-bottom:12px;">
+        <div class="frog-sticker frog-sticker-sm" style="display:inline-block;">
+          <img src="https://media1.tenor.com/m/a5mAD1wlET0AAAAC/animal-cute.gif" alt="cozy frog" loading="lazy">
+        </div>
+      </div>
       <p class="letter-salutation">Dear Sawyer,</p>
       <p class="letter-body">Happy birthday to the most amazing person I know.
 
@@ -1082,6 +1130,9 @@ I'm so grateful for you.</p>
 
   <!-- ======= BOOK 2 — OUR SONGS ======= -->
   <section class="screen book-screen" id="book-songs">
+    <div class="frog-sticker frog-sticker-sm fade-in" style="margin-bottom:-0.3rem;">
+      <img src="https://media1.tenor.com/m/SllhxQ1Fg0wAAAAC/cute-rollerskate.gif" alt="frog vibing" loading="lazy">
+    </div>
     <h2 class="book-screen-title fade-in">Our Songs</h2>
     <p class="songs-note fade-in" style="animation-delay:0.2s">songs that remind me of us</p>
 
@@ -1132,6 +1183,9 @@ I'm so grateful for you.</p>
 
   <!-- ======= BOOK 3 — MEMORIES ======= -->
   <section class="screen book-screen" id="book-memories">
+    <div class="frog-sticker frog-sticker-sm fade-in" style="margin-bottom:-0.3rem;">
+      <img src="https://media1.tenor.com/m/smeyHS9bPvoAAAAC/animal-cute.gif" alt="frog with friend" loading="lazy">
+    </div>
     <h2 class="book-screen-title fade-in">Memories</h2>
     <p class="memories-sub fade-in" style="animation-delay:0.2s">tap a photo to relive it</p>
 
